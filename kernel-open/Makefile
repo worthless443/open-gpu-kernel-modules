@@ -60,7 +60,7 @@ else
     )
   endif
 
-  NV_KERNEL_MODULES ?= $(wildcard nvidia nvidia-uvm nvidia-vgpu-vfio nvidia-modeset nvidia-drm nvidia-peermem)
+  NV_KERNEL_MODULES ?= $(wildcard  $(BIN))
   NV_KERNEL_MODULES := $(filter-out $(NV_EXCLUDE_KERNEL_MODULES), \
                                     $(NV_KERNEL_MODULES))
   NV_VERBOSE ?=
@@ -76,11 +76,19 @@ else
   KBUILD_PARAMS += NV_KERNEL_MODULES="$(NV_KERNEL_MODULES)"
   KBUILD_PARAMS += INSTALL_MOD_DIR=kernel/drivers/video
   KBUILD_PARAMS += NV_SPECTRE_V2=$(SPECTRE_V2_RETPOLINE)
+  mod_set_bin=../src/$(BIN)
+  out_path=_out/Linux_x86_64
+test:
+	$(MAKE) -C $(mod_set_bin)
+	cd $(BIN) && ln -sf ../$(mod_set_bin)/$(out_path)/nv-$(flg)kernel.o nv-$(flg)kernel.o_binary 
+test_clean:
+	$(MAKE) -C $(mod_set_bin) clean 
+	rm -rf $(BIN)/nv-$(flg)kernel.o*
 
   .PHONY: modules module clean clean_conftest modules_install
-  modules clean modules_install:
-	@$(MAKE) "LD=$(LD)" "CC=$(CC)" "OBJDUMP=$(OBJDUMP)" $(KBUILD_PARAMS) $@
-	@if [ "$@" = "modules" ]; then \
+  modules:
+	$(MAKE) "LD=$(LD)" "CC=$(CC)" "OBJDUMP=$(OBJDUMP)" $(KBUILD_PARAMS) $@
+	if [ "$@" = "modules" ]; then \
 	  for module in $(NV_KERNEL_MODULES); do \
 	    if [ -x split-object-file.sh ]; then \
 	      ./split-object-file.sh $$module.ko; \
@@ -121,6 +129,9 @@ else
   # clean-dirs doesn't appear to work as advertised.
   clean_conftest:
 	$(RM) -r conftest
-  clean: clean_conftest
+clean_ko:
+	rm -rf *.ko *.o *.c
+clean: clean_conftest
 
+clean_all: test_clean clean_ko clean
 endif # KERNELRELEASE
